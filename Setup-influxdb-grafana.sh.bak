@@ -1,0 +1,100 @@
+#!/bin/bash
+### SCRIPT TO INSTALL INFLUXDB AND GRAFANA ###
+set -e
+if [[ $EUID -ne 0 ]]; then
+   echo "This script must be run as root user"
+   exit 1
+fi
+
+usage() {
+    echo  -e "\n###\n Monitoring Stack Installation Script
+       Note:
+         This script is for Ubuntu | Debian | Redhat | CentOS Server types Only.
+       Purpose:
+         This Script will perform the following functions:
+	 -- Check OS type of server.
+	 -- Install Monitoring Stack with required input plugins & dependencies.
+       Usage:
+         bash $0 --help
+         bash $0 start
+       Script Parameters:
+         start                  starts the script
+         --help or -h           shows this help text \n###\n"
+    exit 0
+}
+if test "$1" = "" || test  "$1" = "--help" || test "$1" = "-h"; then
+   usage
+elif test "$1" = "start" ; then
+   break
+fi
+echo -e "\n##############################################\n"
+
+### BEGIN INSTALLATION ACCORDING TO OS TYPE ###
+debian_download() {
+    # resynchronize the package index files from their sources.
+    sudo apt-get update
+    sudo apt-get install wget -y
+    # Downloading debian package of influxdb
+    sudo https://dl.influxdata.com/influxdb/releases/influxdb2-2.0.7-amd64.deb
+    # Install influxdb from debian package
+    sudo dpkg -i influxdb2-2.0.7-amd64.deb
+    # Starting The Service
+    sudo systemctl start influxdb
+    sudo systemctl enable influxdb
+    # Downloading debian package of grafana
+    sudo apt-get install -y adduser libfontconfig1
+    sudo wget https://dl.grafana.com/oss/release/grafana_8.0.1_amd64.deb
+    # Handeling Configurations
+    sudo apt-get update
+    sudo apt-get install -f -y
+    sudo dpkg --configure -a
+    # Install grafana from debian package
+    sudo dpkg -I grafana_8.0.1_amd64.deb
+    # Starting The Service
+    sudo systemctl start grafana-server
+    sudo systemctl enable grafana-server
+    sudo rm -f influxdb2_2.0.7_amd64.deb grafana_8.0.1_amd64.deb
+    echo -e "All Installations Completed. \nYou are ready to go!"
+}
+
+redhat_download() {
+    sudo yum update
+    #Installing wget.
+    sudo yum install wget -y
+    # Downloading rpm package of logstash
+    sudo wget https://dl.influxdata.com/influxdb/releases/influxdb2-2.0.7.x86_64.rpm
+    # Install logstash rpm package
+    sudo yum localinstall influxdb2-2.0.7.x86_64.rpm
+    # Starting The Services
+    sudo systemctl start influxdb
+    sudo systemctl enable influxdb
+    # Downloading grafana redhat package
+    wget https://dl.grafana.com/oss/release/grafana-8.0.1-1.x86_64.rpm
+    sudo yum install grafana-8.0.1-1.x86_64.rpm
+    sudo yum install -f -y
+    # Starting The Service
+    sudo systemctl start grafana-server
+    sudo systemctl enable grafana-server
+    sudo rm -f influxdb_1.7.6_amd64.rpm grafana_8.0.1-1.x86_64.rpm
+    echo -e "All Installations Completed. \nYou are ready to go!"
+}
+
+### CHECK OS OF CLIENT MACHINE ###
+if [ "$(grep -Ei 'Debian|Ubuntu|Mint' /etc/*release)" ]
+    then
+        echo " It's a Debian based system"
+        debian_download
+elif [ "$(grep -Ei 'Redhat|CentOS|Fedora' /etc/*release)" ]
+    then
+        echo "It's a RedHat based system."
+        redhat_download
+else
+    echo "This script doesn't support this OS."
+    echo "Please refer this page to find your OS type:"
+    echo "https://portal.influxdata.com/downloads/"
+    echo "https://grafana.com/grafana/download"
+    exit 3
+fi
+
+#Finishing 
+echo  -e "\n###\n ### InfluxDB and Grafana Should now be Running. ###\n###\n"
